@@ -1,8 +1,8 @@
 [gd_scene load_steps=5 format=3 uid="uid://cajyexqqvgn53"]
 
-[ext_resource type="Script" path="res://TerrainGenerator.gd" id="1_daksl"]
-[ext_resource type="Script" path="res://Main.gd" id="1_owbms"]
-[ext_resource type="Script" path="res://camera_3d.gd" id="2_4kdu4"]
+[ext_resource type="Script" uid="uid://w6a0o3mujx83" path="res://TerrainGenerator.gd" id="1_daksl"]
+[ext_resource type="Script" uid="uid://bosvfkygh3j8u" path="res://Main.gd" id="1_owbms"]
+[ext_resource type="Script" uid="uid://c2r0vlx4odoum" path="res://camera_3d.gd" id="2_4kdu4"]
 
 [sub_resource type="Curve" id="Curve_xwa3d"]
 _data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.1, 0), 0.0, 0.0, 0, 0, Vector2(0.2, 0), 0.0, 0.0, 0, 0, Vector2(0.3, 0), 0.0, 0.0, 0, 0, Vector2(0.4, 0.1), 0.0, 0.0, 0, 0, Vector2(0.5, 0.2), 0.0, 0.0, 0, 0, Vector2(0.6, 0.3), 0.0, 0.0, 0, 0, Vector2(0.7, 0.4), 0.0, 0.0, 0, 0, Vector2(0.8, 0.5), 0.0, 0.0, 0, 0, Vector2(0.9, 0.6), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
@@ -17,6 +17,8 @@ transform = Transform3D(50, 0, 0, 0, 50, 0, 0, 0, 50, 0, 0, 0)
 
 [node name="Camera3D" type="Camera3D" parent="."]
 current = true
+near = 0.1
+far = 10000.0
 script = ExtResource("2_4kdu4")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
