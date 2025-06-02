@@ -6,3 +6,7 @@
 script = ExtResource("1_2de1w")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+
+[node name="LodLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 20, 0)
+billboard = 2

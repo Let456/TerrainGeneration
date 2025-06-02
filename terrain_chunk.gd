@@ -1,27 +1,67 @@
 class_name TerrainChunk
 extends Node3D
 
-@export var map_width: int = 241
-@export var map_height: int = 241
-@export var noise_scale: float = 40.0
-@export var mesh_height: float = 20.0
-@export var octaves: int = 4
-@export var persistence: float = 0.5
-@export var lacunarity: float = 5.0
-@export var noise_seed: int = 0
-@export var level_of_detail: int = 0
+@export var map_width := 241
+@export var map_height := 241
+@export var noise_scale := 40.0
+@export var mesh_height := 20.0
+@export var octaves := 4
+@export var persistence := 0.5
+@export var lacunarity := 5.0
+@export var noise_seed := 0
 @export var height_curve: Curve
-@export var terrain_types: Array = []
+@export var terrain_types := []
 
 var chunk_coords = Vector2.ZERO
+var current_lod := -1
 var thread = null
 var thread_result = null
 var mutex := Mutex.new()
+var viewer_position := Vector3.ZERO
 
+func reset_chunk():
+	if thread:
+		mutex.lock()
+		if thread.is_alive():
+			thread.wait_to_finish()
+		mutex.unlock()
+	thread = null
+	thread_result = null
+	if $MeshInstance3D:
+		$MeshInstance3D.mesh = null
+	# DO NOT reset current_lod here!
+
+
+func update_chunk(viewer_pos: Vector3):
+	if thread and thread.is_alive():
+		return # already working
+
+	var dist_sq = global_position.distance_squared_to(viewer_pos)
+	var lod = 0 # default fallback
+	if dist_sq > 700 * 700:
+		lod = 4
+	elif dist_sq > 500 * 500:
+		lod = 3
+	elif dist_sq > 300 * 300:
+		lod = 2
+	elif dist_sq > 100 * 100:
+		lod = 1
+
+	if lod == current_lod:
+		return # no change, don't regen
+
+	current_lod = lod
+	reset_chunk()
+	generate_chunk_async(chunk_coords.x, chunk_coords.y)
+
+	if has_node("LodLabel"):
+		$LodLabel.text = "LOD: %d" % current_lod
+
+		
 func generate_chunk_async(chunk_x: int, chunk_y: int):
 	chunk_coords = Vector2(chunk_x, chunk_y)
 	thread = Thread.new()
-	thread.start(Callable(self, "_threaded_generate_chunk"), Thread.PRIORITY_LOW)
+	thread.start(Callable(self, "_threaded_generate_chunk"))
 
 func _threaded_generate_chunk():
 	mutex.lock()
@@ -37,25 +77,10 @@ func _apply_threaded_result():
 		position = Vector3(chunk_coords.x * (map_width - 1), 0, chunk_coords.y * (map_height - 1))
 		thread_result = null
 
-	if thread:
-		mutex.lock()
-		if thread.is_alive():
-			thread.wait_to_finish()
-		mutex.unlock()
-		thread = null
+		if has_node("LodLabel"):
+			$LodLabel.text = "LOD: %d" % current_lod
 
-func reset_chunk():
-	if thread:
-		mutex.lock()
-		if thread.is_alive():
-			thread.wait_to_finish()
-		mutex.unlock()
-	thread = null
-	thread_result = null
-
-	if $MeshInstance3D:
-		$MeshInstance3D.mesh = null
-
+		
 func apply_height_curve(normalized_height: float) -> float:
 	return height_curve.sample(clamp(normalized_height, 0.0, 1.0))
 
@@ -104,14 +129,13 @@ func get_color_for_height(value: float) -> Color:
 		if value <= terrain["height"]:
 			return terrain["color"]
 	return Color.WHITE
-
 func generate_terrain_mesh(height_map: Array) -> ArrayMesh:
 	var width = height_map[0].size()
 	var height = height_map.size()
 	var st = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 
-	var lod_step = max(1, level_of_detail)
+	var lod_step = max(1, current_lod)
 
 	for y in range(0, height - 1, lod_step):
 		for x in range(0, width - 1, lod_step):
