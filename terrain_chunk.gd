@@ -1,3 +1,4 @@
+class_name TerrainChunk
 extends Node3D
 
 @export var map_width: int = 241
@@ -8,34 +9,57 @@ extends Node3D
 @export var persistence: float = 0.5
 @export var lacunarity: float = 5.0
 @export var noise_seed: int = 0
-@export var level_of_detail: int = 0  # 0 = max detail
+@export var level_of_detail: int = 0
 @export var height_curve: Curve
+@export var terrain_types: Array = []
 
-var terrain_types = [
-	{ "name": "Water",    "height": 0.3, "color": Color8(64, 96, 255) },
-	{ "name": "Sand",     "height": 0.4, "color": Color8(238, 221, 136) },
-	{ "name": "Grass",    "height": 0.6, "color": Color8(136, 204, 102) },
-	{ "name": "Mountain", "height": 0.8, "color": Color8(136, 136, 136) },
-	{ "name": "Snow",     "height": 1.0, "color": Color8(255, 255, 255) }
-]
+var chunk_coords = Vector2.ZERO
+var thread = null
+var thread_result = null
+var mutex := Mutex.new()
 
-func _ready() -> void:
-	var height_map = generate_noise_map(map_width, map_height, noise_scale)
+func generate_chunk_async(chunk_x: int, chunk_y: int):
+	chunk_coords = Vector2(chunk_x, chunk_y)
+	thread = Thread.new()
+	thread.start(Callable(self, "_threaded_generate_chunk"), Thread.PRIORITY_LOW)
+
+func _threaded_generate_chunk():
+	mutex.lock()
+	var height_map = generate_noise_map(map_width, map_height, noise_scale, chunk_coords)
 	var mesh = generate_terrain_mesh(height_map)
-	$MeshInstance3D.mesh = mesh
+	thread_result = mesh
+	mutex.unlock()
+	call_deferred("_apply_threaded_result")
 
-func _process(delta):
-	if Input.is_action_just_pressed("ui_accept"):
-		level_of_detail = (level_of_detail + 1) % 6
-		print("Switched to LOD:", level_of_detail)
-		var height_map = generate_noise_map(map_width, map_height, noise_scale)
-		var mesh = generate_terrain_mesh(height_map)
-		$MeshInstance3D.mesh = mesh
+func _apply_threaded_result():
+	if thread_result:
+		$MeshInstance3D.mesh = thread_result
+		position = Vector3(chunk_coords.x * (map_width - 1), 0, chunk_coords.y * (map_height - 1))
+		thread_result = null
+
+	if thread:
+		mutex.lock()
+		if thread.is_alive():
+			thread.wait_to_finish()
+		mutex.unlock()
+		thread = null
+
+func reset_chunk():
+	if thread:
+		mutex.lock()
+		if thread.is_alive():
+			thread.wait_to_finish()
+		mutex.unlock()
+	thread = null
+	thread_result = null
+
+	if $MeshInstance3D:
+		$MeshInstance3D.mesh = null
 
 func apply_height_curve(normalized_height: float) -> float:
 	return height_curve.sample(clamp(normalized_height, 0.0, 1.0))
 
-func generate_noise_map(width: int, height: int, scale: float) -> Array:
+func generate_noise_map(width: int, height: int, scale: float, coords: Vector2) -> Array:
 	var seed = noise_seed if noise_seed != 0 else randi()
 	var noise = FastNoiseLite.new()
 	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
@@ -57,8 +81,8 @@ func generate_noise_map(width: int, height: int, scale: float) -> Array:
 			var noise_height = 0.0
 
 			for i in range(octaves):
-				var sample_x = (float(x) / scale) * frequency + offsets[i].x
-				var sample_y = (float(y) / scale) * frequency + offsets[i].y
+				var sample_x = ((coords.x * width + x) / scale) * frequency + offsets[i].x
+				var sample_y = ((coords.y * height + y) / scale) * frequency + offsets[i].y
 				var value = noise.get_noise_2d(sample_x, sample_y)
 				noise_height += value * amplitude
 				amplitude *= persistence

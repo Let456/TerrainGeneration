@@ -17,11 +17,11 @@ var terrain_types = [
 @export var octaves: int = 4;
 @export var persistence: float = 0.5
 @export var lacunarity: float = 10.0
-@export var noise_seed: int = 0  # 0 = random seed 
+@export var noise_seed: int = 0  
 
 var noise_map: Image
 
-# Called when the node enters the scene tree for the first time.
+
 func _ready() -> void:
 	var height_map = generate_noise_map(map_width, map_height, noise_scale)
 	var color_map = generate_color_map(height_map)

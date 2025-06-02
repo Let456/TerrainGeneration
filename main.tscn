@@ -1,19 +1,20 @@
-[gd_scene load_steps=5 format=3 uid="uid://cajyexqqvgn53"]
+[gd_scene load_steps=6 format=3 uid="uid://cajyexqqvgn53"]
 
-[ext_resource type="Script" path="res://TerrainGenerator.gd" id="1_daksl"]
 [ext_resource type="Script" path="res://Main.gd" id="1_owbms"]
+[ext_resource type="Script" path="res://terrain_manager.gd" id="1_wjlq2"]
 [ext_resource type="Script" path="res://camera_3d.gd" id="2_4kdu4"]
+[ext_resource type="Curve" uid="uid://h7jjbrj78l7b" path="res://curve.tres" id="3_fn4cr"]
+[ext_resource type="PackedScene" uid="uid://6rovmxt7xqty" path="res://terrain_chunk.tscn" id="3_k51n4"]
 
-[sub_resource type="Curve" id="Curve_xwa3d"]
-_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.1, 0), 0.0, 0.0, 0, 0, Vector2(0.2, 0), 0.0, 0.0, 0, 0, Vector2(0.3, 0), 0.0, 0.0, 0, 0, Vector2(0.4, 0.1), 0.0, 0.0, 0, 0, Vector2(0.5, 0.2), 0.0, 0.0, 0, 0, Vector2(0.6, 0.3), 0.0, 0.0, 0, 0, Vector2(0.7, 0.4), 0.0, 0.0, 0, 0, Vector2(0.8, 0.5), 0.0, 0.0, 0, 0, Vector2(0.9, 0.6), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
-point_count = 11
-
-[node name="TerrainGenerator" type="Node3D"]
-script = ExtResource("1_daksl")
-height_curve = SubResource("Curve_xwa3d")
+[node name="TerrainManager" type="Node3D" node_paths=PackedStringArray("viewer")]
+script = ExtResource("1_wjlq2")
+viewer = NodePath("Camera3D")
+chunk_scene = ExtResource("3_k51n4")
+height_curve = ExtResource("3_fn4cr")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(50, 0, 0, 0, 50, 0, 0, 0, 50, 0, 0, 0)
+visible = false
 
 [node name="Camera3D" type="Camera3D" parent="."]
 current = true
@@ -29,3 +30,5 @@ script = ExtResource("1_owbms")
 [node name="TextureRect" type="TextureRect" parent="Main"]
 offset_right = 40.0
 offset_bottom = 40.0
+
+[node name="TerrainChunk" parent="." instance=ExtResource("3_k51n4")]
