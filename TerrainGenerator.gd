@@ -25,7 +25,7 @@ func _ready() -> void:
 	$MeshInstance3D.mesh = mesh
 
 func _process(delta):
-	if Input.is_action_just_pressed("ui_accept"):
+	if Input.is_action_just_pressed("switch_lod"):
 		level_of_detail = (level_of_detail + 1) % 6
 		print("Switched to LOD:", level_of_detail)
 		var height_map = generate_noise_map(map_width, map_height, noise_scale)
