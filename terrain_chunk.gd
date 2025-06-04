@@ -1,6 +1,8 @@
 class_name TerrainChunk
 extends Node3D
 
+signal mesh_ready(mesh: ArrayMesh)
+
 @export var map_width := 241
 @export var map_height := 241
 @export var noise_scale := 40.0
@@ -14,30 +16,27 @@ extends Node3D
 
 var chunk_coords = Vector2.ZERO
 var current_lod := -1
-var thread = null
-var thread_result = null
-var mutex := Mutex.new()
 var viewer_position := Vector3.ZERO
+var height_curve_lookup := []
+
+func _ready():
+	connect("mesh_ready", Callable(self, "apply_chunk_job"))
+
+func prepare():
+	height_curve_lookup.clear()
+	if height_curve:
+		for i in range(256):
+			height_curve_lookup.append(height_curve.sample(i / 255.0))
+	else:
+		push_warning("[TerrainChunk] height_curve is null — cannot generate lookup table.")
 
 func reset_chunk():
-	if thread:
-		mutex.lock()
-		if thread.is_alive():
-			thread.wait_to_finish()
-		mutex.unlock()
-	thread = null
-	thread_result = null
 	if $MeshInstance3D:
 		$MeshInstance3D.mesh = null
-	# DO NOT reset current_lod here!
-
 
 func update_chunk(viewer_pos: Vector3):
-	if thread and thread.is_alive():
-		return # already working
-
 	var dist_sq = global_position.distance_squared_to(viewer_pos)
-	var lod = 0 # default fallback
+	var lod = 0
 	if dist_sq > 700 * 700:
 		lod = 4
 	elif dist_sq > 500 * 500:
@@ -48,47 +47,56 @@ func update_chunk(viewer_pos: Vector3):
 		lod = 1
 
 	if lod == current_lod:
-		return # no change, don't regen
+		return
 
 	current_lod = lod
 	reset_chunk()
-	generate_chunk_async(chunk_coords.x, chunk_coords.y)
+	chunk_coords = Vector2(
+		floor(global_position.x / (map_width - 1)),
+		floor(global_position.z / (map_height - 1))
+	)
+	add_job_to_pool()
 
 	if has_node("LodLabel"):
 		$LodLabel.text = "LOD: %d" % current_lod
 
-		
-func generate_chunk_async(chunk_x: int, chunk_y: int):
-	chunk_coords = Vector2(chunk_x, chunk_y)
-	thread = Thread.new()
-	thread.start(Callable(self, "_threaded_generate_chunk"))
+func add_job_to_pool():
+	TerrainManager.active_chunk_jobs += 1
+	print("⏳ Starting job. Active jobs:", TerrainManager.active_chunk_jobs)
 
-func _threaded_generate_chunk():
-	mutex.lock()
+	WorkerThreadPool.add_task(
+		Callable(self, "thread_generate_chunk"),
+		false,
+		"Generate mesh for chunk"
+	)
+
+func thread_generate_chunk():
+	var mesh = generate_chunk_job()
+	call_deferred("emit_signal", "mesh_ready", mesh)
+
+func generate_chunk_job() -> ArrayMesh:
 	var height_map = generate_noise_map(map_width, map_height, noise_scale, chunk_coords)
-	var mesh = generate_terrain_mesh(height_map)
-	thread_result = mesh
-	mutex.unlock()
-	call_deferred("_apply_threaded_result")
+	return generate_terrain_mesh(height_map)
 
-func _apply_threaded_result():
-	if thread_result:
-		$MeshInstance3D.mesh = thread_result
-		position = Vector3(chunk_coords.x * (map_width - 1), 0, chunk_coords.y * (map_height - 1))
-		thread_result = null
+func apply_chunk_job(mesh: ArrayMesh):
+	TerrainManager.active_chunk_jobs -= 1
+	print("✅ Finished job. Active jobs:", TerrainManager.active_chunk_jobs)
 
-		if has_node("LodLabel"):
-			$LodLabel.text = "LOD: %d" % current_lod
+	$MeshInstance3D.mesh = mesh
+	position = Vector3(chunk_coords.x * (map_width - 1), 0, chunk_coords.y * (map_height - 1))
 
-		
+	if has_node("LodLabel"):
+		$LodLabel.text = "LOD: %d" % current_lod
+
 func apply_height_curve(normalized_height: float) -> float:
-	return height_curve.sample(clamp(normalized_height, 0.0, 1.0))
+	var i = clamp(int(normalized_height * 255.0), 0, 255)
+	return height_curve_lookup[i]
 
 func generate_noise_map(width: int, height: int, scale: float, coords: Vector2) -> Array:
 	var seed = noise_seed if noise_seed != 0 else randi()
 	var noise = FastNoiseLite.new()
 	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
-	noise.seed = seed
+	noise.seed = seed + int(coords.x * 10000 + coords.y)
 
 	var offsets = []
 	for i in range(octaves):
@@ -129,6 +137,7 @@ func get_color_for_height(value: float) -> Color:
 		if value <= terrain["height"]:
 			return terrain["color"]
 	return Color.WHITE
+
 func generate_terrain_mesh(height_map: Array) -> ArrayMesh:
 	var width = height_map[0].size()
 	var height = height_map.size()

@@ -10,6 +10,7 @@ var visible_chunks = {}
 var chunk_pool: Array = []
 var last_viewer_position := Vector3.INF
 const viewer_move_threshold := 35.0
+var active_chunk_jobs := 0
 
 func _process(_delta):
 	if not viewer:
@@ -25,7 +26,6 @@ func _process(_delta):
 		)
 		update_visible_chunks(viewer_chunk, viewer_pos)
 
-			
 func update_visible_chunks(viewer_chunk: Vector2, viewer_pos: Vector3):
 	var new_chunks = {}
 
@@ -44,7 +44,7 @@ func update_visible_chunks(viewer_chunk: Vector2, viewer_pos: Vector3):
 						chunk_instance.get_parent().remove_child(chunk_instance)
 					add_child(chunk_instance)
 
-				# Setări inițiale
+				# Initialize parameters
 				chunk_instance.map_width = 241
 				chunk_instance.map_height = 241
 				chunk_instance.noise_scale = 40.0
@@ -62,14 +62,23 @@ func update_visible_chunks(viewer_chunk: Vector2, viewer_pos: Vector3):
 					{ "name": "Snow", "height": 1.0, "color": Color8(255, 255, 255) }
 				]
 
+				chunk_instance.prepare()
+
+				# ✅ Position chunk in world immediately
 				chunk_instance.chunk_coords = chunk_coord
+				chunk_instance.position = Vector3(
+					chunk_coord.x * (chunk_instance.map_width - 1),
+					0,
+					chunk_coord.y * (chunk_instance.map_height - 1)
+				)
+
 				chunk_instance.update_chunk(viewer_pos)
 				visible_chunks[chunk_coord] = chunk_instance
 			else:
-				# Chunk deja vizibil — doar actualizează LOD-ul
 				visible_chunks[chunk_coord].update_chunk(viewer_pos)
 
 			new_chunks[chunk_coord] = visible_chunks[chunk_coord]
+
 	for old_coord in visible_chunks.keys():
 		if not new_chunks.has(old_coord):
 			var chunk = visible_chunks[old_coord]
