@@ -1,3 +1,4 @@
+# TerrainManager.gd
 extends Node3D
 
 @export var viewer: Node3D
@@ -6,39 +7,59 @@ extends Node3D
 @export var height_curve: Curve
 @export var octaves: int = 4  # must match the chunks' octaves
 
+
 var chunk_size = 240
 var visible_chunks := {}
 var chunk_pool: Array = []
 var last_viewer_position := Vector3.INF
 const viewer_move_threshold := 200.0
+var active_chunk_jobs: int = 0
 
-# new shared seed & offsets
+# Shared seed & offsets for noise continuity
 var rng_seed: int
 var octave_offsets: Array = []
 
-var active_chunk_jobs := 0
+# Timer for paced LOD updates
+var lod_timer: Timer 	
 
 func _ready():
 	randomize()
+	# initialize shared seed and octave offsets
 	rng_seed = randi()
-	# generate one shared list of random offsets for each octave
 	for i in range(octaves):
 		var ox = randi() % 200000 - 100000
 		var oy = randi() % 200000 - 100000
 		octave_offsets.append(Vector2(ox, oy))
 
+	# setup LOD timer (e.g., 6 times per second)
+	lod_timer = Timer.new()
+	lod_timer.wait_time = 0.17
+	lod_timer.one_shot = false
+	lod_timer.autostart = true
+	add_child(lod_timer)
+	lod_timer.connect("timeout", Callable(self, "_on_lod_timer_timeout"))
+
 func _process(_delta):
 	if not viewer:
 		return
 
-	var viewer_pos = viewer.global_position
-	if viewer_pos.distance_squared_to(last_viewer_position) > viewer_move_threshold * viewer_move_threshold:
-		last_viewer_position = viewer_pos
-		var viewer_chunk = Vector2(
-			floor(viewer_pos.x / chunk_size),
-			floor(viewer_pos.z / chunk_size)
+	var vp = viewer.global_position
+	# spawn/despawn chunks only when viewer moves past threshold
+	if vp.distance_squared_to(last_viewer_position) > viewer_move_threshold * viewer_move_threshold:
+		last_viewer_position = vp
+		var vc = Vector2(
+			floor(vp.x / chunk_size),
+			floor(vp.z / chunk_size)
 		)
-		update_visible_chunks(viewer_chunk, viewer_pos)
+		update_visible_chunks(vc, vp)
+
+func _on_lod_timer_timeout():
+	if not viewer:
+		return
+	var vp = viewer.global_position
+	# update LOD on existing chunks at a steady pace
+	for chunk in visible_chunks.values():
+		chunk.update_chunk(vp)
 
 func update_visible_chunks(viewer_chunk: Vector2, viewer_pos: Vector3):
 	var new_chunks := {}
@@ -58,23 +79,23 @@ func update_visible_chunks(viewer_chunk: Vector2, viewer_pos: Vector3):
 					add_child(c)
 				c.show()
 
-				# initialize
-				c.map_width     = 241
-				c.map_height    = 241
-				c.noise_scale   = 40.0
-				c.mesh_height   = 20.0
-				c.octaves       = octaves
-				c.persistence   = 0.5
-				c.lacunarity    = 5.0
-				c.noise_seed    = rng_seed
-				c.height_curve  = height_curve
-				c.octave_offsets = octave_offsets  # pass the shared offsets
-				c.terrain_types = [
-					{ "name": "Water",    "height": 0.3, "color": Color8(64,  96,  255) },
-					{ "name": "Sand",     "height": 0.4, "color": Color8(238, 221, 136) },
-					{ "name": "Grass",    "height": 0.6, "color": Color8(136, 204, 102) },
-					{ "name": "Mountain", "height": 0.8, "color": Color8(136, 136, 136) },
-					{ "name": "Snow",     "height": 1.0, "color": Color8(255, 255, 255) }
+				# initialize chunk properties
+				c.map_width      = 241
+				c.map_height     = 241
+				c.noise_scale    = 40.0
+				c.mesh_height    = 20.0
+				c.octaves        = octaves
+				c.persistence    = 0.5
+				c.lacunarity     = 5.0
+				c.noise_seed     = rng_seed
+				c.height_curve   = height_curve
+				c.octave_offsets = octave_offsets
+				c.terrain_types  = [
+					{"name":"Water","height":0.3,"color":Color8(64,96,255)},
+					{"name":"Sand","height":0.4,"color":Color8(238,221,136)},
+					{"name":"Grass","height":0.6,"color":Color8(136,204,102)},
+					{"name":"Mountain","height":0.8,"color":Color8(136,136,136)},
+					{"name":"Snow","height":1.0,"color":Color8(255,255,255)}
 				]
 
 				c.prepare()

@@ -1,3 +1,4 @@
+# TerrainChunk.gd
 class_name TerrainChunk
 extends Node3D
 
@@ -14,11 +15,12 @@ signal mesh_ready(mesh: ArrayMesh)
 @export var height_curve: Curve
 @export var terrain_types := []
 
-# new: filled in by manager
+# Populated by TerrainManager at instancing
 var octave_offsets: Array = []
 
 var chunk_coords = Vector2.ZERO
 var current_lod := -1
+var job_pending := false
 var height_curve_lookup := []
 
 func _ready():
@@ -37,33 +39,36 @@ func reset_chunk():
 		$MeshInstance3D.mesh = null
 
 func update_chunk(viewer_pos: Vector3):
-	# compute squared distance to the nearest point on this chunk’s AABB
+	# Compute squared distance to nearest point on this chunk’s AABB
 	var dist_sq = distance_squared_to_chunk(viewer_pos)
 
-	# pick LOD by thresholds
-	var lod = 0
+	# Determine LOD based on thresholds
+	var new_lod = 0
 	if dist_sq > 700 * 700:
-		lod = 4
+		new_lod = 4
 	elif dist_sq > 500 * 500:
-		lod = 3
+		new_lod = 3
 	elif dist_sq > 300 * 300:
-		lod = 2
+		new_lod = 2
 	elif dist_sq > 100 * 100:
-		lod = 1
+		new_lod = 1
 
-	if lod == current_lod:
+	# If LOD unchanged and a job is pending, do nothing
+	if new_lod == current_lod and job_pending:
 		return
 
-	current_lod = lod
-	reset_chunk()
-	chunk_coords = Vector2(
-		floor(global_position.x / (map_width - 1)),
-		floor(global_position.z / (map_height - 1))
-	)
-	add_job_to_pool()
-
-	if has_node("LodLabel"):
-		$LodLabel.text = "LOD: %d" % current_lod
+	# If LOD changed, queue a new build (if none pending)
+	if new_lod != current_lod:
+		current_lod = new_lod
+		reset_chunk()
+		chunk_coords = Vector2(
+			floor(global_position.x / (map_width - 1)),
+			floor(global_position.z / (map_height - 1))
+		)
+		if not job_pending:
+			add_job_to_pool()
+		if has_node("LodLabel"):
+			$LodLabel.text = "LOD: %d" % current_lod
 
 func distance_squared_to_chunk(viewer_pos: Vector3) -> float:
 	var size = map_width - 1
@@ -81,6 +86,7 @@ func distance_squared_to_chunk(viewer_pos: Vector3) -> float:
 	return closest.distance_squared_to(viewer_pos)
 
 func add_job_to_pool():
+	job_pending = true
 	TerrainManager.active_chunk_jobs += 1
 	WorkerThreadPool.add_task(
 		Callable(self, "thread_generate_chunk"),
@@ -97,7 +103,9 @@ func generate_chunk_job() -> ArrayMesh:
 	return generate_terrain_mesh(height_map)
 
 func apply_chunk_job(mesh: ArrayMesh):
+	job_pending = false
 	TerrainManager.active_chunk_jobs -= 1
+
 	$MeshInstance3D.mesh = mesh
 	position = Vector3(
 		chunk_coords.x * (map_width - 1),
@@ -107,8 +115,8 @@ func apply_chunk_job(mesh: ArrayMesh):
 	if has_node("LodLabel"):
 		$LodLabel.text = "LOD: %d" % current_lod
 
-func apply_height_curve(h: float) -> float:
-	var i = clamp(int(h * 255.0), 0, 255)
+func apply_height_curve(normalized_height: float) -> float:
+	var i = clamp(int(normalized_height * 255.0), 0, 255)
 	return height_curve_lookup[i]
 
 func generate_noise_map(width: int, height: int, scale: float, coords: Vector2) -> Array:
@@ -123,23 +131,22 @@ func generate_noise_map(width: int, height: int, scale: float, coords: Vector2) 
 	for y in range(height):
 		height_map.append([])
 		for x in range(width):
-			var amp = 1.0
-			var freq = 1.0
+			var amplitude = 1.0
+			var frequency = 1.0
 			var nval = 0.0
 			for i in range(octaves):
-				# align sample to world-space grid
 				var world_x = coords.x * (width - 1) + x
 				var world_y = coords.y * (height - 1) + y
-				var sx = (world_x / scale) * freq + octave_offsets[i].x
-				var sy = (world_y / scale) * freq + octave_offsets[i].y
-				nval += noise.get_noise_2d(sx, sy) * amp
-				amp *= persistence
-				freq *= lacunarity
+				var sample_x = (world_x / scale) * frequency + octave_offsets[i].x
+				var sample_y = (world_y / scale) * frequency + octave_offsets[i].y
+				nval += noise.get_noise_2d(sample_x, sample_y) * amplitude
+				amplitude *= persistence
+				frequency *= lacunarity
 			min_n = min(min_n, nval)
 			max_n = max(max_n, nval)
 			height_map[y].append(nval)
 
-	# normalize
+	# Normalize heights to [0,1]
 	for y in range(height):
 		for x in range(width):
 			var h = height_map[y][x]
@@ -147,10 +154,10 @@ func generate_noise_map(width: int, height: int, scale: float, coords: Vector2) 
 
 	return height_map
 
-func get_color_for_height(v: float) -> Color:
-	for t in terrain_types:
-		if v <= t["height"]:
-			return t["color"]
+func get_color_for_height(value: float) -> Color:
+	for terrain in terrain_types:
+		if value <= terrain["height"]:
+			return terrain["color"]
 	return Color.WHITE
 
 func generate_terrain_mesh(height_map: Array) -> ArrayMesh:
@@ -177,9 +184,13 @@ func generate_terrain_mesh(height_map: Array) -> ArrayMesh:
 
 			var col = get_color_for_height(n00)
 			st.set_color(col)
-			st.add_vertex(p00); st.add_vertex(p10); st.add_vertex(p11)
+			st.add_vertex(p00)
+			st.add_vertex(p10)
+			st.add_vertex(p11)
 			st.set_color(col)
-			st.add_vertex(p00); st.add_vertex(p11); st.add_vertex(p01)
+			st.add_vertex(p00)
+			st.add_vertex(p11)
+			st.add_vertex(p01)
 
 	var mat = StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true

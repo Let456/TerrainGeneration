@@ -1,8 +1,8 @@
 [gd_scene load_steps=6 format=3 uid="uid://cajyexqqvgn53"]
 
-[ext_resource type="Script" uid="uid://bosvfkygh3j8u" path="res://Main.gd" id="1_owbms"]
-[ext_resource type="Script" uid="uid://bsfnk0lsqn4ln" path="res://terrain_manager.gd" id="1_wjlq2"]
-[ext_resource type="Script" uid="uid://c2r0vlx4odoum" path="res://camera_3d.gd" id="2_4kdu4"]
+[ext_resource type="Script" path="res://Main.gd" id="1_owbms"]
+[ext_resource type="Script" path="res://terrain_manager.gd" id="1_wjlq2"]
+[ext_resource type="Script" path="res://camera_3d.gd" id="2_4kdu4"]
 [ext_resource type="Curve" uid="uid://h7jjbrj78l7b" path="res://curve.tres" id="3_fn4cr"]
 [ext_resource type="PackedScene" uid="uid://6rovmxt7xqty" path="res://terrain_chunk.tscn" id="3_k51n4"]
 
