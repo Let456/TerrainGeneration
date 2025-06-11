@@ -4,8 +4,13 @@ extends Node3D
 @export var chunk_scene: PackedScene
 @export var view_distance: int = 2
 @export var height_curve: Curve
-@export var octaves: int = 4  # must match the chunks' octaves
+@export var octaves: int = 4 # must match the chunks' octaves
+@export var use_falloff: bool = false
+@export var falloff_a := 3.0
+@export var falloff_b := 2.2
 
+
+var falloff_map: Array = []
 var chunk_size := 240
 var visible_chunks := {}
 var chunk_pool: Array = []
@@ -27,7 +32,8 @@ func _ready():
 		var ox = randi() % 200000 - 100000
 		var oy = randi() % 200000 - 100000
 		octave_offsets.append(Vector2(ox, oy))
-
+	
+	falloff_map = generate_falloff_map(241, 241)
 	lod_timer = Timer.new()
 	lod_timer.wait_time = 0.17
 	lod_timer.one_shot = false
@@ -67,12 +73,14 @@ func update_visible_chunks(viewer_chunk: Vector2, viewer_pos: Vector3):
 
 				c.map_width      = 241
 				c.map_height     = 241
-				c.noise_scale    = 40.0
+				c.noise_scale    = 20.0
 				c.mesh_height    = 20.0
 				c.octaves        = octaves
-				c.persistence    = 0.5
-				c.lacunarity     = 5.0
+				c.persistence    = 0.55
+				c.lacunarity     = 3.5
 				c.noise_seed     = rng_seed
+				c.use_falloff    = use_falloff
+				c.falloff_map    = falloff_map
 				c.height_curve   = height_curve
 				c.octave_offsets = octave_offsets
 				c.terrain_types  = [
@@ -82,7 +90,6 @@ func update_visible_chunks(viewer_chunk: Vector2, viewer_pos: Vector3):
 					{"name":"Mountain","height":0.8,"color":Color8(136,136,136)},
 					{"name":"Snow","height":1.0,"color":Color8(255,255,255)}
 				]
-
 				c.prepare()
 				c.chunk_coords = coord
 				c.position = Vector3(
@@ -108,3 +115,20 @@ func get_chunk_from_pool() -> Node:
 	if chunk_pool.size() > 0:
 		return chunk_pool.pop_back()
 	return chunk_scene.instantiate()
+	
+func generate_falloff_map(w: int, h: int) -> Array:
+	var map := []
+	for y in range(h):
+		map.append([])
+		for x in range(w):
+			# normalize x,y to [-1..1]
+			var nx = x / float(w - 1) * 2.0 - 1.0
+			var ny = y / float(h - 1) * 2.0 - 1.0
+			# distance from center
+			var d = max(abs(nx), abs(ny))
+			# compute Seb’s falloff: d^a / (d^a + (b - b*d)^a)
+			var da = pow(d, falloff_a)
+			var inv = pow(falloff_b - falloff_b * d, falloff_a)
+			var f = da / (da + inv)
+			map[y].append(f)
+	return map

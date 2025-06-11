@@ -5,15 +5,17 @@ signal mesh_ready(mesh: ArrayMesh)
 
 @export var map_width: int = 241
 @export var map_height: int = 241
-@export var noise_scale: float = 40.0
+@export var noise_scale: float = 80.0
 @export var mesh_height: float = 20.0
-@export var octaves: int = 4
-@export var persistence: float = 0.5
-@export var lacunarity: float = 10.0
+@export var octaves: int = 3
+@export var persistence: float = 0.35
+@export var lacunarity: float = 2.5
 @export var noise_seed: int = 0
 @export var height_curve: Curve
 @export var terrain_types: Array = []
-@export var skirt_height: float = 2.0  # how far the skirt drops
+@export var use_falloff: bool = false
+@export var falloff_curve: Curve
+
 
 # sum of all octave amplitudes, used for consistent normalization
 var amplitude_sum: float = 0.0
@@ -25,6 +27,7 @@ var chunk_coords: Vector2 = Vector2.ZERO
 var current_lod: int = -1
 var job_pending: bool = false
 var height_curve_lookup: Array = []
+var falloff_map: Array = []
 
 func _ready():
 	amplitude_sum = 0.0
@@ -128,6 +131,10 @@ func generate_noise_map(width: int, height: int, scale: float, coords: Vector2) 
 	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
 	noise.seed = noise_seed
 
+	# Pre‐defined remap window
+	const LOW := 0.30
+	const HIGH := 0.75
+
 	var height_map := []
 	for y in range(height):
 		height_map.append([])
@@ -136,7 +143,7 @@ func generate_noise_map(width: int, height: int, scale: float, coords: Vector2) 
 			var frequency := 1.0
 			var noise_height := 0.0
 
-			# accumulate multi-octave noise
+			# 1) accumulate multi‐octave noise
 			for i in range(octaves):
 				var world_x = coords.x * (width - 1) + x
 				var world_y = coords.y * (height - 1) + y
@@ -146,15 +153,21 @@ func generate_noise_map(width: int, height: int, scale: float, coords: Vector2) 
 				amplitude *= persistence
 				frequency *= lacunarity
 
-			# 1) global normalization to [0…1]
+			# 2) global normalization to [0..1]
 			var n := (noise_height + amplitude_sum) / (2.0 * amplitude_sum)
 
-			# 2) stretch the observed tight band (e.g. [0.425…0.60] → [0…1])
-			n = (n - 0.425) / 0.175
+			# 3) optional falloff mask
+			if use_falloff:
+				var f = falloff_map[y][x]
+				n = clamp(n - f, 0.0, 1.0)
+
+			# 4) remap window [LOW..HIGH] to [0..1]
+			n = (n - LOW) / (HIGH - LOW)
 			n = clamp(n, 0.0, 1.0)
 
 			height_map[y].append(n)
 	return height_map
+
 
 
 
@@ -170,77 +183,30 @@ func generate_terrain_mesh(height_map: Array) -> ArrayMesh:
 	var st = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var step = max(1, current_lod)
-	var sk = skirt_height
 
-	# Main terrain
+	# 1) Main terrain triangles
 	for y in range(0, h - 1, step):
 		for x in range(0, w - 1, step):
 			var x1 = min(x + step, w - 1)
 			var y1 = min(y + step, h - 1)
+
 			var n00 = height_map[y][x]
 			var n10 = height_map[y][x1]
 			var n01 = height_map[y1][x]
 			var n11 = height_map[y1][x1]
+
 			var p00 = Vector3(x, apply_height_curve(n00) * mesh_height, y)
 			var p10 = Vector3(x1, apply_height_curve(n10) * mesh_height, y)
 			var p01 = Vector3(x, apply_height_curve(n01) * mesh_height, y1)
 			var p11 = Vector3(x1, apply_height_curve(n11) * mesh_height, y1)
+
 			var col = get_color_for_height(n00)
 			st.set_color(col)
 			st.add_vertex(p00); st.add_vertex(p10); st.add_vertex(p11)
 			st.set_color(col)
 			st.add_vertex(p00); st.add_vertex(p11); st.add_vertex(p01)
 
-	# Skirts — top edge
-	for x in range(0, w - 1, step):
-		var n0 = height_map[0][x]
-		var n1 = height_map[0][min(x + step, w - 1)]
-		var p0 = Vector3(x, apply_height_curve(n0) * mesh_height, 0)
-		var p1 = Vector3(min(x + step, w - 1), apply_height_curve(n1) * mesh_height, 0)
-		var s0 = p0 + Vector3(0, -sk, 0)
-		var s1 = p1 + Vector3(0, -sk, 0)
-		var c0 = get_color_for_height(n0)
-		st.set_color(c0); st.add_vertex(p0); st.add_vertex(p1); st.add_vertex(s1)
-		st.set_color(c0); st.add_vertex(p0); st.add_vertex(s1); st.add_vertex(s0)
-
-	# Skirts — bottom edge
-	for x in range(0, w - 1, step):
-		var yb = h - 1
-		var n0b = height_map[yb][x]
-		var n1b = height_map[yb][min(x + step, w - 1)]
-		var pb0 = Vector3(x, apply_height_curve(n0b) * mesh_height, yb)
-		var pb1 = Vector3(min(x + step, w - 1), apply_height_curve(n1b) * mesh_height, yb)
-		var sb0 = pb0 + Vector3(0, -sk, 0)
-		var sb1 = pb1 + Vector3(0, -sk, 0)
-		var c0b = get_color_for_height(n0b)
-		st.set_color(c0b); st.add_vertex(pb1); st.add_vertex(pb0); st.add_vertex(sb0)
-		st.set_color(c0b); st.add_vertex(pb1); st.add_vertex(sb0); st.add_vertex(sb1)
-
-	# Skirts — left edge
-	for y2 in range(0, h - 1, step):
-		var n0l = height_map[y2][0]
-		var n1l = height_map[min(y2 + step, h - 1)][0]
-		var p0l = Vector3(0, apply_height_curve(n0l) * mesh_height, y2)
-		var p1l = Vector3(0, apply_height_curve(n1l) * mesh_height, min(y2 + step, h - 1))
-		var s0l = p0l + Vector3(0, -sk, 0)
-		var s1l = p1l + Vector3(0, -sk, 0)
-		var c0l = get_color_for_height(n0l)
-		st.set_color(c0l); st.add_vertex(p1l); st.add_vertex(p0l); st.add_vertex(s0l)
-		st.set_color(c0l); st.add_vertex(p1l); st.add_vertex(s0l); st.add_vertex(s1l)
-
-	# Skirts — right edge
-	for y2 in range(0, h - 1, step):
-		var xr = w - 1
-		var n0r = height_map[y2][xr]
-		var n1r = height_map[min(y2 + step, h - 1)][xr]
-		var pr0 = Vector3(xr, apply_height_curve(n0r) * mesh_height, y2)
-		var pr1 = Vector3(xr, apply_height_curve(n1r) * mesh_height, min(y2 + step, h - 1))
-		var sr0 = pr0 + Vector3(0, -sk, 0)
-		var sr1 = pr1 + Vector3(0, -sk, 0)
-		var c0r = get_color_for_height(n0r)
-		st.set_color(c0r); st.add_vertex(pr0); st.add_vertex(pr1); st.add_vertex(sr1)
-		st.set_color(c0r); st.add_vertex(pr0); st.add_vertex(sr1); st.add_vertex(sr0)
-
+	# 6) Finalize
 	var mat = StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	st.set_material(mat)
