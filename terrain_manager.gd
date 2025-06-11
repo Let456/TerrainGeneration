@@ -1,4 +1,3 @@
-# TerrainManager.gd
 extends Node3D
 
 @export var viewer: Node3D
@@ -7,8 +6,7 @@ extends Node3D
 @export var height_curve: Curve
 @export var octaves: int = 4  # must match the chunks' octaves
 
-
-var chunk_size = 240
+var chunk_size := 240
 var visible_chunks := {}
 var chunk_pool: Array = []
 var last_viewer_position := Vector3.INF
@@ -20,18 +18,16 @@ var rng_seed: int
 var octave_offsets: Array = []
 
 # Timer for paced LOD updates
-var lod_timer: Timer 	
+var lod_timer: Timer
 
 func _ready():
 	randomize()
-	# initialize shared seed and octave offsets
 	rng_seed = randi()
 	for i in range(octaves):
 		var ox = randi() % 200000 - 100000
 		var oy = randi() % 200000 - 100000
 		octave_offsets.append(Vector2(ox, oy))
 
-	# setup LOD timer (e.g., 6 times per second)
 	lod_timer = Timer.new()
 	lod_timer.wait_time = 0.17
 	lod_timer.one_shot = false
@@ -42,28 +38,21 @@ func _ready():
 func _process(_delta):
 	if not viewer:
 		return
-
 	var vp = viewer.global_position
-	# spawn/despawn chunks only when viewer moves past threshold
 	if vp.distance_squared_to(last_viewer_position) > viewer_move_threshold * viewer_move_threshold:
 		last_viewer_position = vp
-		var vc = Vector2(
-			floor(vp.x / chunk_size),
-			floor(vp.z / chunk_size)
-		)
+		var vc = Vector2(floor(vp.x/chunk_size), floor(vp.z/chunk_size))
 		update_visible_chunks(vc, vp)
 
 func _on_lod_timer_timeout():
 	if not viewer:
 		return
 	var vp = viewer.global_position
-	# update LOD on existing chunks at a steady pace
 	for chunk in visible_chunks.values():
 		chunk.update_chunk(vp)
 
 func update_visible_chunks(viewer_chunk: Vector2, viewer_pos: Vector3):
 	var new_chunks := {}
-
 	for y in range(-view_distance, view_distance + 1):
 		for x in range(-view_distance, view_distance + 1):
 			var coord = viewer_chunk + Vector2(x, y)
@@ -71,15 +60,11 @@ func update_visible_chunks(viewer_chunk: Vector2, viewer_pos: Vector3):
 				var c = get_chunk_from_pool()
 				if c == null:
 					continue
-
-				# parent & show
 				if c.get_parent() != self:
-					if c.get_parent():
-						c.get_parent().remove_child(c)
+					if c.get_parent(): c.get_parent().remove_child(c)
 					add_child(c)
 				c.show()
 
-				# initialize chunk properties
 				c.map_width      = 241
 				c.map_height     = 241
 				c.noise_scale    = 40.0
@@ -105,22 +90,18 @@ func update_visible_chunks(viewer_chunk: Vector2, viewer_pos: Vector3):
 					0,
 					coord.y * (c.map_height - 1)
 				)
-
 				c.update_chunk(viewer_pos)
 				visible_chunks[coord] = c
 			else:
 				visible_chunks[coord].update_chunk(viewer_pos)
-
 			new_chunks[coord] = visible_chunks[coord]
 
-	# recycle old chunks
 	for old in visible_chunks.keys():
 		if not new_chunks.has(old):
 			var c = visible_chunks[old]
 			c.reset_chunk()
 			c.hide()
 			chunk_pool.append(c)
-
 	visible_chunks = new_chunks
 
 func get_chunk_from_pool() -> Node:
