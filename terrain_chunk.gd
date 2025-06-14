@@ -171,7 +171,7 @@ func generate_noise_map(width: int, height: int, scale: float, coords: Vector2) 
 				n = clamp(n - f, 0.0, 1.0)
 
 			# 4) remap window [LOW..HIGH] to [0..1]
-			n = (n - LOW) / (HIGH - LOW)
+			#n = (n - LOW) / (HIGH - LOW)
 			n = clamp(n, 0.0, 1.0)
 
 			height_map[y].append(n)

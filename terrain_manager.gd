@@ -75,10 +75,10 @@ func update_visible_chunks(viewer_chunk: Vector2, viewer_pos: Vector3):
 				c.map_width      = 241
 				c.map_height     = 241
 				c.noise_scale    = 20.0
-				c.mesh_height    = 20.0
+				c.mesh_height    = 50.0
 				c.octaves        = octaves
-				c.persistence    = 0.55
-				c.lacunarity     = 3.5
+				c.persistence    = 0.8
+				c.lacunarity     = 3.0
 				c.noise_seed     = rng_seed
 				c.use_falloff    = use_falloff
 				c.falloff_map    = falloff_map
