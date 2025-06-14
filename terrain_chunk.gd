@@ -14,6 +14,8 @@ signal mesh_ready(mesh: ArrayMesh)
 @export var height_curve: Curve
 @export var use_falloff: bool = false
 @export var use_flat_shading: bool = false
+@export var global_min_height: float = 0.0
+@export var global_max_height: float = 50.0
 
 var amplitude_sum: float = 0.0
 var octave_offsets: Array = []
@@ -110,12 +112,29 @@ func _on_mesh_ready(mesh: ArrayMesh):
 	TerrainManager.active_chunk_jobs -= 1
 
 	$MeshInstance3D.mesh = mesh
+	$MeshInstance3D.material_override = preload("res://TerrainMaterial.tres").duplicate()
 	position = Vector3(
 		chunk_coords.x * (map_width - 1),
 		0,
 		chunk_coords.y * (map_height - 1)
 	)
+	set_terrain_material_min_max($MeshInstance3D, mesh)
 	_update_collider(mesh)
+
+
+func set_terrain_material_min_max(mesh_instance, mesh):
+	var min_y = INF
+	var max_y = -INF
+	var arrs = mesh.surface_get_arrays(0)
+	for v in arrs[Mesh.ARRAY_VERTEX]:
+		min_y = min(min_y, v.y)
+		max_y = max(max_y, v.y)
+	var mat = mesh_instance.material_override
+	if mat and mat is ShaderMaterial:
+		mat.set_shader_parameter("min_height", global_min_height)
+		mat.set_shader_parameter("max_height", global_max_height)
+
+
 
 func apply_height_curve(h: float) -> float:
 	var i = clamp(int(h * 255.0), 0, 255)

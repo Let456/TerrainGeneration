@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://6rovmxt7xqty"]
 
-[ext_resource type="Script" path="res://terrain_chunk.gd" id="1_2de1w"]
+[ext_resource type="Script" uid="uid://00b7vvurxbng" path="res://terrain_chunk.gd" id="1_2de1w"]
 [ext_resource type="Material" uid="uid://jal36hhg3sie" path="res://TerrainMaterial.tres" id="2_7tytv"]
 
 [node name="TerrainChunk" type="Node3D"]

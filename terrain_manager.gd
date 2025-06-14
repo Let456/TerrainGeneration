@@ -9,6 +9,8 @@ extends Node3D
 @export var falloff_a := 3.0
 @export var falloff_b := 2.2
 @export var use_flat_shading: bool = false
+@export var global_min_height: float = 0.0
+@export var global_max_height: float = 50.0
 
 var falloff_map: Array = []
 var chunk_size := 240
@@ -84,6 +86,8 @@ func update_visible_chunks(viewer_chunk: Vector2, viewer_pos: Vector3):
 				c.height_curve     = height_curve
 				c.octave_offsets   = octave_offsets
 				c.use_flat_shading = use_flat_shading
+				c.global_min_height = global_min_height
+				c.global_max_height = global_max_height
 
 				c.prepare()
 				c.chunk_coords = coord
