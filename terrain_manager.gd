@@ -8,6 +8,7 @@ extends Node3D
 @export var use_falloff: bool = false
 @export var falloff_a := 3.0
 @export var falloff_b := 2.2
+@export var use_flat_shading: bool = false
 
 
 var falloff_map: Array = []
@@ -83,6 +84,7 @@ func update_visible_chunks(viewer_chunk: Vector2, viewer_pos: Vector3):
 				c.falloff_map    = falloff_map
 				c.height_curve   = height_curve
 				c.octave_offsets = octave_offsets
+				c.use_flat_shading = use_flat_shading
 				c.terrain_types  = [
 					{"name":"Water","height":0.3,"color":Color8(64,96,255)},
 					{"name":"Sand","height":0.4,"color":Color8(238,221,136)},

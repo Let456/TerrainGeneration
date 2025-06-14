@@ -1,10 +1,12 @@
-[gd_scene load_steps=6 format=3 uid="uid://cajyexqqvgn53"]
+[gd_scene load_steps=7 format=3 uid="uid://cajyexqqvgn53"]
 
 [ext_resource type="Script" path="res://Main.gd" id="1_owbms"]
 [ext_resource type="Script" path="res://terrain_manager.gd" id="1_wjlq2"]
 [ext_resource type="Script" path="res://camera_3d.gd" id="2_4kdu4"]
 [ext_resource type="PackedScene" uid="uid://6rovmxt7xqty" path="res://terrain_chunk.tscn" id="3_k51n4"]
 [ext_resource type="Curve" uid="uid://bhc2l756ywddg" path="res://goodCurve.tres" id="3_n40w2"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_ev7q0"]
 
 [node name="TerrainManager" type="Node3D" node_paths=PackedStringArray("viewer")]
 script = ExtResource("1_wjlq2")
@@ -13,14 +15,11 @@ chunk_scene = ExtResource("3_k51n4")
 height_curve = ExtResource("3_n40w2")
 falloff_a = 5.0
 falloff_b = 4.0
+use_flat_shading = true
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(50, 0, 0, 0, 50, 0, 0, 0, 50, 0, 0, 0)
 visible = false
-
-[node name="Camera3D" type="Camera3D" parent="."]
-current = true
-script = ExtResource("2_4kdu4")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 10000, 0)
@@ -34,3 +33,14 @@ offset_right = 40.0
 offset_bottom = 40.0
 
 [node name="TerrainChunk" parent="." instance=ExtResource("3_k51n4")]
+
+[node name="CharacterBody3D" type="CharacterBody3D" parent="."]
+visible = false
+motion_mode = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CharacterBody3D"]
+shape = SubResource("CapsuleShape3D_ev7q0")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+current = true
+script = ExtResource("2_4kdu4")
