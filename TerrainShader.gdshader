@@ -4,7 +4,7 @@ shader_type spatial;
 // Height thresholds (normalized 0→1)
 uniform float water_level     = 0.05;
 uniform float beach_level     = 0.10;
-uniform float grass_level     = 0.45;
+uniform float grass_level     = 0.35;
 uniform float mountain_level  = 0.92;
 
 // How wide the blend zones are

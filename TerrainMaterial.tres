@@ -1,10 +1,11 @@
-[gd_resource type="ShaderMaterial" load_steps=6 format=3 uid="uid://jal36hhg3sie"]
+[gd_resource type="ShaderMaterial" load_steps=7 format=3 uid="uid://jal36hhg3sie"]
 
 [ext_resource type="Shader" uid="uid://ddb02o4dmjabo" path="res://TerrainShader.gdshader" id="1_bjhfw"]
 [ext_resource type="Texture2D" uid="uid://catcd16cm1718" path="res://99_artificial green grass texture-seamless.jpg" id="2_j20rm"]
 [ext_resource type="Texture2D" uid="uid://o8qxnlrd3nk1" path="res://6_beach sand texture-seamless.jpg" id="2_qtvjq"]
 [ext_resource type="Texture2D" uid="uid://dceny1oojg3jk" path="res://pool-water-texture.jpg" id="2_t6erv"]
 [ext_resource type="Texture2D" uid="uid://cdasgwrc7gm40" path="res://33_rock stone texture-seamless.jpg" id="3_en6wu"]
+[ext_resource type="Texture2D" uid="uid://ttb1mkyeffid" path="res://59_rock stone texture-seamless.jpg" id="5_en6wu"]
 
 [resource]
 render_priority = 0
@@ -18,6 +19,7 @@ shader_parameter/water_tex = ExtResource("2_t6erv")
 shader_parameter/sand_tex = ExtResource("2_qtvjq")
 shader_parameter/grass_tex = ExtResource("2_j20rm")
 shader_parameter/rock_tex = ExtResource("3_en6wu")
+shader_parameter/snow_tex = ExtResource("5_en6wu")
 shader_parameter/texture_scale = 8.0
 shader_parameter/slope_threshold = 0.6
 shader_parameter/min_height = 0.0
