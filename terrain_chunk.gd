@@ -191,42 +191,55 @@ func generate_terrain_mesh(height_map: Array) -> ArrayMesh:
 	var st = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var step = max(1, current_lod)
+	var uv_scale = 8.0  # adjust to control tiling density
 
 	for y in range(0, h - 1, step):
 		for x in range(0, w - 1, step):
 			var x1 = min(x + step, w - 1)
 			var y1 = min(y + step, h - 1)
+
+			# Heights
 			var n00 = height_map[y][x]
 			var n10 = height_map[y][x1]
 			var n01 = height_map[y1][x]
 			var n11 = height_map[y1][x1]
-			var p00 = Vector3(x, apply_height_curve(n00) * mesh_height, y)
+			# Positions
+			var p00 = Vector3(x,  apply_height_curve(n00) * mesh_height, y)
 			var p10 = Vector3(x1, apply_height_curve(n10) * mesh_height, y)
-			var p01 = Vector3(x, apply_height_curve(n01) * mesh_height, y1)
+			var p01 = Vector3(x,  apply_height_curve(n01) * mesh_height, y1)
 			var p11 = Vector3(x1, apply_height_curve(n11) * mesh_height, y1)
 
+			# UVs (normalized 0→1 then scaled)
+			var uv00 = Vector2(x  / float(w - 1), y  / float(h - 1)) * uv_scale
+			var uv10 = Vector2(x1 / float(w - 1), y  / float(h - 1)) * uv_scale
+			var uv01 = Vector2(x  / float(w - 1), y1 / float(h - 1)) * uv_scale
+			var uv11 = Vector2(x1 / float(w - 1), y1 / float(h - 1)) * uv_scale
+
 			if use_flat_shading:
+				# Triangle A
 				var nrmA = (p11 - p00).cross(p10 - p00).normalized()
 				st.set_normal(nrmA)
-				st.add_vertex(p00)
-				st.add_vertex(p10)
-				st.add_vertex(p11)
+				st.set_uv(uv00); st.add_vertex(p00)
+				st.set_uv(uv10); st.add_vertex(p10)
+				st.set_uv(uv11); st.add_vertex(p11)
 
+				# Triangle B
 				var nrmB = (p01 - p00).cross(p11 - p00).normalized()
 				st.set_normal(nrmB)
-				st.add_vertex(p00)
-				st.add_vertex(p11)
-				st.add_vertex(p01)
+				st.set_uv(uv00); st.add_vertex(p00)
+				st.set_uv(uv11); st.add_vertex(p11)
+				st.set_uv(uv01); st.add_vertex(p01)
 			else:
-				st.add_vertex(p00)
-				st.add_vertex(p10)
-				st.add_vertex(p11)
-				st.add_vertex(p00)
-				st.add_vertex(p11)
-				st.add_vertex(p01)
+				# Triangle A
+				st.set_uv(uv00); st.add_vertex(p00)
+				st.set_uv(uv10); st.add_vertex(p10)
+				st.set_uv(uv11); st.add_vertex(p11)
+				# Triangle B
+				st.set_uv(uv00); st.add_vertex(p00)
+				st.set_uv(uv11); st.add_vertex(p11)
+				st.set_uv(uv01); st.add_vertex(p01)
 
 	if not use_flat_shading:
 		st.generate_normals()
 
-	# no StandardMaterial3D here—colour comes from your ShaderMaterial override
 	return st.commit()
