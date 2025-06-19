@@ -11,6 +11,8 @@ extends Node3D
 @export var use_flat_shading: bool = false
 @export var global_min_height: float = 0.0
 @export var global_max_height: float = 50.0
+@export var tree_scene: PackedScene
+@export var trees_per_chunk: int = 3
 
 var falloff_map: Array = []
 var chunk_size := 240
@@ -88,7 +90,8 @@ func update_visible_chunks(viewer_chunk: Vector2, viewer_pos: Vector3):
 				c.use_flat_shading = use_flat_shading
 				c.global_min_height = global_min_height
 				c.global_max_height = global_max_height
-
+				c.tree_scene      = tree_scene
+				c.trees_per_chunk = trees_per_chunk
 				c.prepare()
 				c.chunk_coords = coord
 				c.position = Vector3(

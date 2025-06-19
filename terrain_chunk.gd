@@ -16,6 +16,8 @@ signal mesh_ready(mesh: ArrayMesh)
 @export var use_flat_shading: bool = false
 @export var global_min_height: float = 0.0
 @export var global_max_height: float = 50.0
+@export var tree_scene: PackedScene
+@export var trees_per_chunk: int = 0
 
 var amplitude_sum: float = 0.0
 var octave_offsets: Array = []
@@ -120,6 +122,7 @@ func _on_mesh_ready(mesh: ArrayMesh):
 	)
 	set_terrain_material_min_max($MeshInstance3D, mesh)
 	_update_collider(mesh)
+	spawn_trees()
 
 
 func set_terrain_material_min_max(mesh_instance, mesh):
@@ -139,6 +142,53 @@ func set_terrain_material_min_max(mesh_instance, mesh):
 func apply_height_curve(h: float) -> float:
 	var i = clamp(int(h * 255.0), 0, 255)
 	return height_curve_lookup[i]
+
+func spawn_trees():
+	if not tree_scene or trees_per_chunk <= 0:
+		return
+
+	randomize()
+	var space = get_world_3d().direct_space_state
+
+	for i in range(trees_per_chunk):
+		# 1) pick a random X,Z in chunk
+		var local_x = randf() * (map_width - 1)
+		var local_z = randf() * (map_height - 1)
+		# 2) world coords
+		var world_x = chunk_coords.x * (map_width - 1) + local_x
+		var world_z = chunk_coords.y * (map_height - 1) + local_z
+
+		# 3) build the query parameters
+		var from = Vector3(world_x, mesh_height + 10.0, world_z)
+		var to   = Vector3(world_x, -10.0,         world_z)
+		var params = PhysicsRayQueryParameters3D.new()
+		params.from    = from
+		params.to      = to
+		params.exclude = [ self ]             # don’t hit the chunk’s own body
+		# params.collision_mask = 1          # if you need to limit layers
+
+		# 4) perform the raycast
+		var result = space.intersect_ray(params)
+		# Option A: check for the “position” key
+		if not result.has("position"):
+			continue
+		var hit_pos = result["position"]
+
+
+		# 5) instance & place the tree
+		var t = tree_scene.instantiate() as Node3D
+		add_child(t)
+		t.global_transform.origin = result.position
+
+		# 6) finally build it (using its exported settings)
+		t.generate_tree(
+			Vector3.ZERO,
+			Basis(),  # upright
+			t.branch_length,
+			t.branch_thickness,
+			t.max_depth
+		)
+
 
 func generate_noise_map(width: int, height: int, scale: float, coords: Vector2) -> Array:
 	var noise = FastNoiseLite.new()

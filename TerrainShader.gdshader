@@ -18,7 +18,7 @@ uniform sampler2D rock_tex;
 uniform sampler2D snow_tex;
 
 // UV tiling scale in world‐units (repeats per unit length)
-uniform float texture_scale   = 0.1;  
+uniform float texture_scale   = 0.1;
 
 // Slope override: how steep before forcing rock
 uniform float slope_threshold = 0.6;

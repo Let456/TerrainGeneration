@@ -1,10 +1,11 @@
-[gd_scene load_steps=7 format=3 uid="uid://cajyexqqvgn53"]
+[gd_scene load_steps=8 format=3 uid="uid://cajyexqqvgn53"]
 
-[ext_resource type="Script" uid="uid://bosvfkygh3j8u" path="res://Main.gd" id="1_owbms"]
-[ext_resource type="Script" uid="uid://bsfnk0lsqn4ln" path="res://terrain_manager.gd" id="1_wjlq2"]
-[ext_resource type="Script" uid="uid://c2r0vlx4odoum" path="res://camera_3d.gd" id="2_4kdu4"]
+[ext_resource type="Script" path="res://Main.gd" id="1_owbms"]
+[ext_resource type="Script" path="res://terrain_manager.gd" id="1_wjlq2"]
+[ext_resource type="Script" path="res://camera_3d.gd" id="2_4kdu4"]
 [ext_resource type="PackedScene" uid="uid://6rovmxt7xqty" path="res://terrain_chunk.tscn" id="3_k51n4"]
 [ext_resource type="Curve" uid="uid://bhc2l756ywddg" path="res://goodCurve.tres" id="3_n40w2"]
+[ext_resource type="PackedScene" uid="uid://xrwatr4giqgo" path="res://tree.tscn" id="6_c5wnw"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_ev7q0"]
 
@@ -16,6 +17,7 @@ height_curve = ExtResource("3_n40w2")
 falloff_a = 5.0
 falloff_b = 4.0
 use_flat_shading = true
+tree_scene = ExtResource("6_c5wnw")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(50, 0, 0, 0, 50, 0, 0, 0, 50, 0, 0, 0)
@@ -44,3 +46,5 @@ shape = SubResource("CapsuleShape3D_ev7q0")
 [node name="Camera3D" type="Camera3D" parent="."]
 current = true
 script = ExtResource("2_4kdu4")
+
+[node name="Tree" parent="." instance=ExtResource("6_c5wnw")]
