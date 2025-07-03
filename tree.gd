@@ -4,7 +4,7 @@ extends Node3D
 @export var auto_generate: bool       = false   # only generate on demand
 @export var branch_length: float     = 3.0
 @export var branch_thickness: float  = 0.3
-@export var max_depth: int           = 7
+@export var max_depth: int           = 3
 @export var branch_angle: float      = 35.0
 @export var randomness: float        = 50.0
 @export var length_scale: float      = 0.75

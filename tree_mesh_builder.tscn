@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://6pmdqtmpla2e"]
+
+[ext_resource type="Script" uid="uid://br52r1e7spvl3" path="res://tree_mesh_builder.gd" id="1_h2ys8"]
+
+[node name="TreeMeshBuilder" type="Node3D"]
+script = ExtResource("1_h2ys8")
