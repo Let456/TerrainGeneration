@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://cajyexqqvgn53"]
+[gd_scene load_steps=12 format=3 uid="uid://cajyexqqvgn53"]
 
 [ext_resource type="Script" uid="uid://bosvfkygh3j8u" path="res://Main.gd" id="1_owbms"]
 [ext_resource type="Script" uid="uid://bsfnk0lsqn4ln" path="res://terrain_manager.gd" id="1_wjlq2"]
@@ -8,6 +8,20 @@
 [ext_resource type="PackedScene" uid="uid://xrwatr4giqgo" path="res://tree.tscn" id="6_c5wnw"]
 [ext_resource type="PackedScene" uid="uid://6pmdqtmpla2e" path="res://tree_mesh_builder.tscn" id="7_5vw27"]
 
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_272bh"]
+sky_top_color = Color(0.0392157, 0.298039, 0.560784, 1)
+sky_horizon_color = Color(0.356863, 0.752941, 0.921569, 1)
+sky_energy_multiplier = 1.5
+ground_bottom_color = Color(0.0117647, 0.67451, 0.780392, 1)
+ground_horizon_color = Color(0.356863, 0.752941, 0.921569, 1)
+
+[sub_resource type="Sky" id="Sky_5vw27"]
+sky_material = SubResource("ProceduralSkyMaterial_272bh")
+
+[sub_resource type="Environment" id="Environment_kek77"]
+background_mode = 2
+sky = SubResource("Sky_5vw27")
+
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_ev7q0"]
 
 [node name="TerrainManager" type="Node3D" node_paths=PackedStringArray("viewer")]
@@ -15,18 +29,20 @@ script = ExtResource("1_wjlq2")
 viewer = NodePath("Camera3D")
 chunk_scene = ExtResource("3_k51n4")
 height_curve = ExtResource("3_n40w2")
-use_falloff = true
 falloff_a = 5.0
 falloff_b = 4.0
 use_flat_shading = true
 enable_tree_spawn = false
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(50, 0, 0, 0, 50, 0, 0, 0, 50, 0, 0, 0)
-visible = false
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_kek77")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 10000, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(50, 0, 0, 0, 50, 0, 0, 0, 50, 0, 0, 0)
+visible = false
 
 [node name="Main" type="Node2D" parent="."]
 visible = false
